@@ -13,6 +13,8 @@ const createTask = function (taskText, taskDate, taskList) {
   // append span and p element to parent li
   taskLi.append(taskSpan, taskP);
 
+  // check due date
+  auditTask(taskLi)
   // append to ul list on the page
   $("#list-" + taskList).append(taskLi);
 };
@@ -32,7 +34,6 @@ const loadTasks = function () {
 
   // loop over object properties
   $.each(tasks, function (list, arr) {
-    console.log(list, arr);
     // then loop over sub-array
     arr.forEach(function (task) {
       createTask(task.text, task.date, list);
@@ -128,23 +129,28 @@ $(".list-group").on("click", "span", function () {
   const date = $(this)
     .text()
     .trim();
-
   //  create new input element 
   const dateInput = $("<input>")
     .attr("type", "text")
     .addClass("form-control")
     .val(date);
-
   // swap out elements
   $(this).replaceWith(dateInput);
-
+  // enable jquery ui datepicker
+  dateInput.datepicker({
+    minDate: 1,
+    onClose: function() {
+      // when calendar is closed, force a 'change' event on the 'dateInput'
+      $(this).trigger("change")
+    }
+  })
   // automatically focus on new element
   dateInput.trigger("focus");
 });
 
 
 // value of due date was changed
-$(".list-group").on("blur", "input[type='text']", function () {
+$(".list-group").on("change", "input[type='text']", function () {
   // get current text
   const date = $(this)
     .val()
@@ -167,6 +173,8 @@ $(".list-group").on("blur", "input[type='text']", function () {
     .text(date);
   // replace input with span element
   $(this).replaceWith(taskSpan);
+  // Pass task's <li> element into auditTask() to check new due date
+  auditTask($(taskSpan).closest(".list-group-item"));
 });
 
 // make list items sortable
@@ -224,6 +232,41 @@ $("#trash").droppable({
     console.log("out");
   }
 })
+// add datepicker to input element
+$("#modalDueDate").datepicker({
+  minDate: 1
+});
 
+
+// check to see how much time is left before task is due
+const auditTask = function(taskEl) {
+  // get date from task element
+  const date = $(taskEl).find("span").text().trim();
+  // ensure it worked
+
+  // convert to moment object at 5:00pm
+  let dateObj = new Date(date)
+  // Set hour to 5pm
+  dateObj.setHours(17);
+  console.log(dateObj)
+  // format date object 
+  const formatDate = { 
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }
+  dateObj = dateObj.toLocaleString("en-US", formatDate);
+  console.log(dateObj);
+  // remove any old classes from element
+  $(taskEl).removeClass("list-group-item-warning list-group-item-danger")
+  // apply new class if task is near/over due date
+  const today = new Date();
+  const dueDate = new Date(date)
+  if (dueDate < today) {
+    $(taskEl).addClass("list-group-item-danger");
+  } else if (dueDate < (today.setDate(today.getDate() + 5))) {
+    $(taskEl).addClass("list-group-item-warning");
+  }
+}
 // load tasks for the first time
 loadTasks();
